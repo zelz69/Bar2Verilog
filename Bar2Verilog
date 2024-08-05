@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAR Binary to Verilog Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: WHITE;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0000ff;
+        }
+    </style>
+</head>
+<body>
+    <h1>BAR2Verilog</h1>
+    <input type="file" id="fileInput" accept=".bin">
+    <textarea id="output" readonly placeholder="Dont forget to add special cases"></textarea>
+    <button id="copyButton">CTRL + C</button>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const buffer = e.target.result;
+                const view = new DataView(buffer);
+                let output = 'module pcileech_bar_impl_bar\n    input               rst,\n    input               clk,\n    // incoming BAR writes:\n    input [31:0]        wr_addr,\n    input [3:0]         wr_be,\n    input [31:0]        wr_data,\n    input               wr_valid,\n    // incoming BAR reads:\n    input  [87:0]       rd_req_ctx,\n    input  [31:0]       rd_req_addr,\n    input               rd_req_valid,\n    input  [31:0]       base_address_register,\n    // outgoing BAR read replies:\n    output reg [87:0]   rd_rsp_ctx,\n    output reg [31:0]   rd_rsp_data,\n    output reg          rd_rsp_valid\n);\n                     \n    reg [87:0]      drd_req_ctx;\n    reg [31:0]      drd_req_addr;\n    reg             drd_req_valid;\n                  \n    reg [31:0]      dwr_addr;\n    reg [31:0]      dwr_data;\n    reg             dwr_valid;\n               \n    reg [31:0]      data_32;\n              \n    time number = 0;\n                  \n    always @ (posedge clk) begin\n        if (rst)\n            number <= 0;\n               \n        number          <= number + 1;\n        drd_req_ctx     <= rd_req_ctx;\n        drd_req_valid   <= rd_req_valid;\n        dwr_valid       <= wr_valid;\n        drd_req_addr    <= rd_req_addr;\n        rd_rsp_ctx      <= drd_req_ctx;\n        rd_rsp_valid    <= drd_req_valid;\n        dwr_addr        <= wr_addr;\n        dwr_data        <= wr_data;\n\n';
+                output += '        if (drd_req_valid) begin\n            case (({drd_req_addr[31:24], drd_req_addr[23:16], drd_req_addr[15:08], drd_req_addr[07:00]} - (base_address_register & 32\'hFFFFFFF0)) & 32\'h00FF)\n';
+
+                for (let offset = 0; offset < Math.min(buffer.byteLength, 0x1000); offset += 4) {
+                    const value = view.getUint32(offset, true); // little-endian
+                    if (value !== 0) {
+                        const hexOffset = offset.toString(16).padStart(4, '0').toUpperCase();
+                        const hexValue = value.toString(16).padStart(8, '0').toUpperCase();
+                        output += `        16'h${hexOffset} : rd_rsp_data <= 32'h${hexValue};\n`;
+                    }
+                }
+
+                output += '        default: rd_rsp_data <= 32\'h00000000;\n    endcase\n        end else if (dwr_valid) begin\n            case (({dwr_addr[31:24], dwr_addr[23:16], dwr_addr[15:08], dwr_addr[07:00]} - (base_address_register & 32\'hFFFFFFF0)) & 32\'h00FF)\n                //Dont be scared\n            endcase\n        end else begin\n            rd_rsp_data <= 32\'h00000000;\n        end\n    end\n            \nendmodule\n';
+
+                document.getElementById('output').value = output;
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        document.getElementById('copyButton').addEventListener('click', function() {
+            const output = document.getElementById('output');
+            output.select();
+            document.execCommand('copy');
+            alert('Copied to clipboard!');
+        });
+    </script>
+</body>
+</html>
