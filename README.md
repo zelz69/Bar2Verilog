@@ -7,4 +7,4 @@
     ![image](https://github.com/user-attachments/assets/751ffb87-90d6-487b-bde3-36615f95e8fe)
 
     Double click your BAR in RW everything and select BIN at the top left. Input the address you pulled from Arbor.
-    ![image](https://github.com/user-attachments/assets/3cc83bc8-eacb-42fe-8960-391f436d8d91)
+    https://imgur.com/5QAbrh1
